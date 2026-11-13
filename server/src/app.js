@@ -30,26 +30,55 @@ const app = express();
 // Falls back to permissive mode if not set (useful for initial deploy / testing).
 const allowedOrigins = (process.env.CLIENT_ORIGINS || "")
   .split(",")
-  .map((o) => o.trim())
+  .map((origin) => origin.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
-const allowAllOrigins = allowedOrigins.length === 0;
+console.log("Allowed CORS origins:", allowedOrigins);
 
 app.disable("x-powered-by");
+
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: {
+    policy: "cross-origin"
+  }
 }));
-app.use(cors({
+
+const corsOptions = {
   origin(origin, callback) {
-    // No origin = same-origin / server-to-server / curl — always allow
-    if (!origin) return callback(null, true);
-    // Wildcard mode when no allowed origins configured (dev / first-deploy)
-    if (allowAllOrigins) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error(`CORS: Origin ${origin} is not allowed`));
+    // Allow requests without an Origin header
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedOrigin = origin.replace(/\/$/, "");
+
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    console.error("Blocked CORS origin:", origin);
+    return callback(new Error("Origin is not allowed by CORS"));
   },
-  credentials: true
-}));
+
+  credentials: true,
+
+  methods: [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS"
+  ],
+
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization"
+  ]
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 // Webhook endpoint requires raw body for HMAC signature verification
 app.use("/api/webhooks", express.raw({ type: "application/json", limit: "1mb" }), paymentWebhookRoutes);
