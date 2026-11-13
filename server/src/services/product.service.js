@@ -143,3 +143,31 @@ export async function getPublicProductBySlug(slug) {
   if (!product) throw Object.assign(new Error("Product not found"), { status: 404 });
   return product;
 }
+
+export async function getPublicProductById(id) {
+  // Validate MongoDB ObjectId
+  if (!mongoose.isValidObjectId(id)) {
+    throw Object.assign(
+      new Error("Invalid product ID"),
+      { status: 400 }
+    );
+  }
+
+  // Fetch only active products
+  const product = await Product.findOne({
+    _id: id,
+    isActive: true
+  })
+    .populate("category", "name division")
+    .lean();
+
+  if (!product) {
+    throw Object.assign(
+      new Error("Product not found or inactive"),
+      { status: 404 }
+    );
+  }
+
+  return product;
+}
+
