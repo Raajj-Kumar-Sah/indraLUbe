@@ -1,8 +1,0 @@
-export function authorize(...allowedRoles) {
-  return (req, res, next) => {
-    if (!req.user || (!allowedRoles.includes(req.user.role) && req.user.role !== "SUPER_ADMIN")) {
-      return res.status(403).json({ success: false, message: "You do not have permission to access this resource" });
-    }
-    next();
-  };
-}
