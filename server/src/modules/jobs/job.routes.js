@@ -1,0 +1,17 @@
+import { Router } from "express";
+import mongoose from "mongoose";
+import Job from "./job.model.js";
+import { authenticate } from "../../middleware/authenticate.js";
+import { authorize } from "../../middleware/authorize.js";
+const publicRouter=Router(), hrRouter=Router();
+const fields=["title","division","department","location","type","summary","status"];
+const valid=(v)=>typeof v==="string";
+const invalid=(body,partial=false)=>!body||typeof body!=="object"||Object.keys(body).some(k=>!fields.includes(k))||(!partial&&["title","division","department","location"].some(k=>!valid(body[k])||!body[k].trim()))||Object.entries(body).some(([k,v])=>!valid(v)||v.length>({summary:2000,title:140,location:120,department:80}[k]||30));
+const safe=(doc)=>({id:doc.id,title:doc.title,division:doc.division,department:doc.department,location:doc.location,type:doc.type,summary:doc.summary,status:doc.status});
+publicRouter.get("/",async(req,res,next)=>{try{const docs=await Job.find({status:"Published"}).sort({createdAt:-1}).limit(100);res.json({success:true,data:docs.map(safe)});}catch(e){next(e)}});
+publicRouter.get("/:id",async(req,res,next)=>{try{if(!mongoose.isValidObjectId(req.params.id))return res.sendStatus(404);const doc=await Job.findOne({_id:req.params.id,status:"Published"});if(!doc)return res.sendStatus(404);res.json({success:true,data:safe(doc)});}catch(e){next(e)}});
+hrRouter.use(authenticate,authorize("HR","ADMIN","SUPER_ADMIN"));
+hrRouter.get("/",async(req,res,next)=>{try{const docs=await Job.find().sort({createdAt:-1}).limit(200);res.json({success:true,data:docs.map(safe)});}catch(e){next(e)}});
+hrRouter.post("/",async(req,res,next)=>{try{if(invalid(req.body))return res.status(400).json({message:"Invalid job details"});const doc=await Job.create({...req.body,createdBy:req.user.sub});res.status(201).json({success:true,data:safe(doc)});}catch(e){next(e)}});
+hrRouter.patch("/:id",async(req,res,next)=>{try{if(!mongoose.isValidObjectId(req.params.id))return res.sendStatus(404);if(invalid(req.body,true)||!Object.keys(req.body).length)return res.status(400).json({message:"Invalid update"});const doc=await Job.findById(req.params.id);if(!doc)return res.sendStatus(404);Object.assign(doc,req.body);await doc.save();res.json({success:true,data:safe(doc)});}catch(e){next(e)}});
+export {publicRouter as publicJobRoutes,hrRouter as hrJobRoutes};

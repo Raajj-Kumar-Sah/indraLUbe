@@ -1,0 +1,10 @@
+import {Router} from "express";
+import {authenticate} from "../../middleware/authenticate.js";
+import {authorize} from "../../middleware/authorize.js";
+import * as controller from "./interview.controller.js";
+const router=Router();
+router.use(authenticate,authorize("HR","ADMIN","SUPER_ADMIN"));
+router.get("/",controller.list);
+router.post("/applications/:applicationId",controller.schedule);
+router.patch("/:id/status",controller.status);
+export default router;

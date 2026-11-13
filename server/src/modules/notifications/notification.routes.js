@@ -1,0 +1,11 @@
+import {Router} from "express";
+import mongoose from "mongoose";
+import Notification from "./notification.model.js";
+import {authenticate} from "../../middleware/authenticate.js";
+import {listMine} from "./notification.service.js";
+const router=Router();
+router.use(authenticate);
+router.get("/",async(req,res,next)=>{try{const data=await listMine(req.user.sub,{unreadOnly:req.query.unread==="true",page:req.query.page,limit:req.query.limit});res.json({success:true,data});}catch(e){next(e)}});
+router.patch("/:id/read",async(req,res,next)=>{try{if(!mongoose.isValidObjectId(req.params.id))return res.sendStatus(404);const doc=await Notification.findOneAndUpdate({_id:req.params.id,recipient:req.user.sub,readAt:null},{$set:{readAt:new Date()}},{new:true});if(!doc){const exists=await Notification.exists({_id:req.params.id,recipient:req.user.sub});if(!exists)return res.sendStatus(404)}res.json({success:true,message:"Notification marked as read"});}catch(e){next(e)}});
+router.post("/read-all",async(req,res,next)=>{try{await Notification.updateMany({recipient:req.user.sub,readAt:null},{$set:{readAt:new Date()}});res.json({success:true,message:"All notifications marked as read"});}catch(e){next(e)}});
+export default router;
