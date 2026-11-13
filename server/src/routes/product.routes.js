@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 import { authenticate } from "../middleware/authenticate.js";
 import { authorize } from "../middleware/authorize.js";
@@ -7,15 +8,29 @@ import * as controller from "../controllers/product.controller.js";
 
 const router = Router();
 
+// Public product routes
 router.get("/", controller.publicList);
 router.get("/slug/:slug", controller.publicDetail);
+router.get("/id/:id", controller.publicDetailById);
 
-router.use(adminIpFilter, authenticate, authorize("SUPER_ADMIN", "ADMIN"));
+// Admin routes
+router.use(
+  adminIpFilter,
+  authenticate,
+  authorize("SUPER_ADMIN", "ADMIN")
+);
+
 router.get("/admin", controller.list);
 router.post("/", controller.create);
 router.patch("/:id", controller.update);
 router.patch("/:id/active", controller.active);
-router.post("/:id/images", uploadImage.array("images", 6), controller.images);
+
+router.post(
+  "/:id/images",
+  uploadImage.array("images", 6),
+  controller.images
+);
+
 router.delete("/:id/images/:imageId", controller.removeImage);
 router.delete("/:id", controller.remove);
 
